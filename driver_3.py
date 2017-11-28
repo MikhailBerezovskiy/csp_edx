@@ -53,4 +53,18 @@
 #          }
 #      return change
 
+import sys
 
+class init:
+    def __init__(self):
+        self.testing_sequences = []
+    
+    def load_file(self):
+        with open('sudokus_start.txt', newline='') as input_file:
+            file_reader = csv.reader(input_file)
+            for row in file_reader:
+                self.testing_sequences.append(row)
+                print(row)
+
+start = init()
+start.load_file()
