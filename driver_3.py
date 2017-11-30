@@ -1,12 +1,11 @@
 import sys
 import csv
 import math
+from collections import deque
 
 class sudoku:
     def __init__(self):
         self.testing_sequences = self.load_file()
-        self.testing_board_str = self.testing_sequences[1]
-
         for each in self.testing_sequences:
             print (self.solve(each))
             # break
@@ -23,38 +22,45 @@ class sudoku:
 
     def convert_str_to_dict(self, string_board):
         # convert string board to dict
-        # format: square 9x9 cells with "A-I" for x and "1-9" for Y
-        # print (string_board)
+        # format: "xyz", x-row, y-col, z-box, first value 000, last 999
         di = {}
         for i in range(len(string_board)):
-            # x_val = chr(65 + math.trunc(i/9))
-            x_val = math.trunc(i/9)
-            y_val = i%9
-            sq_val = int(i/27)*3 + int(i%9/3) 
-            di_prop = map(str,[x_val,y_val,sq_val])
-            di["".join(di_prop)] = int(string_board[i])
-        # print (di)
+            x_val = math.trunc(i/9) # col
+            y_val = i%9 # row
+            sq_val = int(i/27)*3 + int(i%9/3) # box
+            di_prop = map(str,[x_val,y_val,sq_val]) # convert to string
+            di["".join(di_prop)] = int(string_board[i]) # assign to dictionary
         return di
 
-    def print_board(sefl, string_board):
+    def convert_dict_to_str(self, D):
+        # input solved matrix of domains D(x)
+        # output single string with 81 symbols D(x)
+        li = list(range(81)) # create list with 81 lenght
+        for x in D:
+            # to avoid wrong sequence of dict keys, parse dict key into list item number
+            # x = "121", row#1 col#2 box#1
+            li[9*int(x[0])+int(x[1])] = D[x][0] 
+        return "".join(map(str,li))
+
+    def print_board(sefl, string_board): # in case to check visualy board, not in use
         for i in range(len(string_board)):
             if i%9 == 0:
                 print ('\n')
             print (string_board[i], end='\t')
         return print ('\n')  
 
+    #
+    # Solver
+    #
     def solve(self, string_board):
         # Try AC-3 first, if pass return result
         # Else try bts
         # convert str board to dict before solving
         X = self.convert_str_to_dict(string_board)
-        # try AC-3
+
         test_ac3 = self.ac3(X)
-        # print (test_ac3["Board"])
-        # print (test_ac3)
         if test_ac3["Pass"]:
-            
-            return (string_board, "AC3")
+            return (self.convert_dict_to_str(test_ac3["Board"]), "AC3")
         else:
             return (string_board, "Not Pass")
         # try bts
@@ -66,114 +72,74 @@ class sudoku:
     def unary_constraints(self, X):
         # input all cells
         # output dict with avail cell actions
-        self.q = []
-        D = {}
+        self.q = deque([])
+        D = {} # init Domains matrix
         for cell in X:
-            avail_nums = list(range(1,10))
-            if X[cell] != 0:
-                D[cell] = [X[cell]]
+            domain = list(range(1,10)) # available domains
+            if X[cell] != 0: D[cell] = [X[cell]] # check given values on board, and assign D(x)
             else:
                 D[cell] = []
                 for i in X:
-                    if cell[0] == i[0] or cell[1] == i[1] or cell[2] == i[2]:
+                    # check neighboring rows, cols, and box
+                    if cell[0] == i[0] or cell[1] == i[1] or cell[2] == i[2]: 
                         try:
                             if cell != i:
-                                self.q.append([cell, i])
-                                avail_nums.remove(X[i])
+                                self.q.append([cell, i]) # update arc consistancy queue
+                                domain.remove(X[i]) # filter domain for unary constraint, AllDiff with rows,cols,box
                         except:
-                            pass        
-                D[cell] = avail_nums
-        # print(self.q)
-        # print (D)
-        return D 
+                            pass
+                D[cell] = domain # assign unary filtered domain to D(x)
+        return D # domain matrix
 
     def arc_reduce(self, x, y, Dx, Dy):
         # input x, y and their available domains
-        # output filtered out domain X
-        # c1: AllDiff
-        # Choose vx that way that vx and vy are consistant with c1 
-        # Iterate until len Dx == 1, remove 
+        # constraint check if D(y) is single value domain
+        # and vy (D(y)) in D(x) then remove vx
+        # output filtered out domain of x D(x) and change
         change = False
         for vx in Dx:
-            for vy in Dy:
-                if vx != vy:
-                    self.D[x].remove(vx)
-                    change = True
-                    return change
+            if vx in Dy and len(Dy) == 1:
+                self.D[x].remove(vx)
+                change = True
+                return change
         return change
 
     def ac3(self, X):
-        # return unary constraints
-        self.D = self.unary_constraints(X)
-        q = self.q
+        self.D = self.unary_constraints(X) # assign Domain matrix with unary constraints
+        q = self.q # assign local queue
 
         while len(q) != 0:
-            # print (len(q))
-            arc = q[0]
+            arc = q.popleft()
             x,y = arc
-            q.remove([x,y])
             if self.arc_reduce(x,y,self.D[x],self.D[y]):
-                if len(self.D[x]) == 0:
+                if len(self.D[x]) == 0: # D(x) is empty, no solution
                     return {"Pass": False, "Board": self.D} 
                 else:
                     N = self.get_neighbors(X,x,y)
                     for n in N:
                         q.append(n)
-        # print (self.D)
+
+        # check solution: each domain should have only single value
+        for x in self.D:
+            if len(self.D[x]) > 1:
+                return {"Pass": False, "Board": self.D}
+        
+        # if not broken yet, finaly return success
         return {"Pass": True, "Board": self.D}
     
     def get_neighbors(self, X, x, y):
-        Nli = []
+        # update working list queue (self.q) after arc constancy changed
+        Nli = [] # neighbors list
         for xi in X:
             for xj in X:
                 if xi == x and xj == y:
                     next
                 if xi[0] == xj[0] or xi[1] == xj[1] or xi[2] == xj[2]:
-                    if xi != xj:
+                    if xi != xj and len(self.D[xj]) == 1:
                         Nli.append([xi, xj])    
         return Nli
-    # init ac-3
 
 
-    #  Input:
-    #    A set of variables X
-    #    A set of domains D(x) for each variable x in X. D(x) contains vx0, vx1... vxn, the possible values of x
-    #    A set of unary constraints R1(x) on variable x that must be satisfied
-    #    A set of binary constraints R2(x, y) on variables x and y that must be satisfied
-
-    #  Output:
-    #    Arc consistent domains for each variable.
-    
-    #  function ac3 (X, D, R1, R2)
-    #  // Initial domains are made consistent with unary constraints.
-    #      for each x in X
-    #          D(x) := { vx in D(x) | R1(x) }   
-    #      // 'worklist' contains all arcs we wish to prove consistent or not.
-    #      worklist := { (x, y) | there exists a relation R2(x, y) or a relation R2(y, x) }
-    
-    #      do
-    #          select any arc (x, y) from worklist
-    #          worklist := worklist - (x, y)
-    #          if arc-reduce (x, y) 
-    #              if D(x) is empty
-    #                  return failure
-    #              else
-    #                  worklist := worklist + { (z, x) | z != y and there exists a relation R2(x, z) or a relation R2(z, x) }
-    #      while worklist not empty
-    
-    #  function arc-reduce (x, y)
-    #      bool change = false
-    #      for each vx in D(x)
-    #          find a value vy in D(y) such that vx and vy satisfy the constraint R2(x, y)
-    #          if there is no such vy {
-    #              D(x) := D(x) - vx
-    #              change := true
-    #          }
-    #      return change
-
-
-sudoku = sudoku()
-# string_board = sudoku.testing_board_str
-# sudoku.solve(string_board)
+sudoku()
 
 
