@@ -9,6 +9,7 @@ class sudoku:
 
         for each in self.testing_sequences:
             print (self.solve(each))
+            # break
 
     def load_file(self):
         # load examples from start csv
@@ -49,8 +50,10 @@ class sudoku:
         X = self.convert_str_to_dict(string_board)
         # try AC-3
         test_ac3 = self.ac3(X)
+        # print (test_ac3["Board"])
         # print (test_ac3)
         if test_ac3["Pass"]:
+            
             return (string_board, "AC3")
         else:
             return (string_board, "Not Pass")
@@ -74,11 +77,14 @@ class sudoku:
                 for i in X:
                     if cell[0] == i[0] or cell[1] == i[1] or cell[2] == i[2]:
                         try:
-                            self.q.append([cell, i])
-                            avail_nums.remove(X[i])
+                            if cell != i:
+                                self.q.append([cell, i])
+                                avail_nums.remove(X[i])
                         except:
                             pass        
                 D[cell] = avail_nums
+        # print(self.q)
+        # print (D)
         return D 
 
     def arc_reduce(self, x, y, Dx, Dy):
@@ -88,8 +94,12 @@ class sudoku:
         # Choose vx that way that vx and vy are consistant with c1 
         # Iterate until len Dx == 1, remove 
         change = False
-
-
+        for vx in Dx:
+            for vy in Dy:
+                if vx != vy:
+                    self.D[x].remove(vx)
+                    change = True
+                    return change
         return change
 
     def ac3(self, X):
@@ -102,21 +112,26 @@ class sudoku:
             arc = q[0]
             x,y = arc
             q.remove([x,y])
-            if X[x] != 0:
-                next
             if self.arc_reduce(x,y,self.D[x],self.D[y]):
                 if len(self.D[x]) == 0:
                     return {"Pass": False, "Board": self.D} 
-                # else:
-                #     for i in range(9):
-                #         b = str(i)
-                #         q.append([b+x[1:3], x])
-                #         q.append([x[0] + b + x[2],x])
-                #         q.append([x[0:2] + b, x])
-
+                else:
+                    N = self.get_neighbors(X,x,y)
+                    for n in N:
+                        q.append(n)
+        # print (self.D)
         return {"Pass": True, "Board": self.D}
     
-    
+    def get_neighbors(self, X, x, y):
+        Nli = []
+        for xi in X:
+            for xj in X:
+                if xi == x and xj == y:
+                    next
+                if xi[0] == xj[0] or xi[1] == xj[1] or xi[2] == xj[2]:
+                    if xi != xj:
+                        Nli.append([xi, xj])    
+        return Nli
     # init ac-3
 
 
@@ -160,3 +175,5 @@ class sudoku:
 sudoku = sudoku()
 # string_board = sudoku.testing_board_str
 # sudoku.solve(string_board)
+
+
