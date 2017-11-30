@@ -57,7 +57,6 @@ class sudoku:
         # Else try bts
         # convert str board to dict before solving
         X = self.convert_str_to_dict(string_board)
-
         test_ac3 = self.ac3(X)
         if test_ac3["Pass"]:
             return (self.convert_dict_to_str(test_ac3["Board"]), "AC3")
@@ -68,6 +67,26 @@ class sudoku:
         #     test_bts = self.bts(X)
         #     return (test_bts["board"], "BTS")
 
+    def ac3(self, X):
+        self.D = self.unary_constraints(X) # assign Domain matrix with unary constraints
+        q = self.q # assign local queue
+        while len(q) != 0:
+            arc = q.popleft()
+            x,y = arc
+            if self.arc_reduce(x,y,self.D[x],self.D[y]):
+                if len(self.D[x]) == 0: # D(x) is empty, no solution
+                    return {"Pass": False, "Board": self.D} 
+                else:
+                    N = self.get_neighbors(X,x,y)
+                    for n in N:
+                        q.append(n)
+        # check solution: each domain should have only single value
+        for x in self.D:
+            if len(self.D[x]) > 1:
+                return {"Pass": False, "Board": self.D}
+        
+        # if not broken yet, finaly return success
+        return {"Pass": True, "Board": self.D}
 
     def unary_constraints(self, X):
         # input all cells
@@ -103,29 +122,6 @@ class sudoku:
                 change = True
                 return change
         return change
-
-    def ac3(self, X):
-        self.D = self.unary_constraints(X) # assign Domain matrix with unary constraints
-        q = self.q # assign local queue
-
-        while len(q) != 0:
-            arc = q.popleft()
-            x,y = arc
-            if self.arc_reduce(x,y,self.D[x],self.D[y]):
-                if len(self.D[x]) == 0: # D(x) is empty, no solution
-                    return {"Pass": False, "Board": self.D} 
-                else:
-                    N = self.get_neighbors(X,x,y)
-                    for n in N:
-                        q.append(n)
-
-        # check solution: each domain should have only single value
-        for x in self.D:
-            if len(self.D[x]) > 1:
-                return {"Pass": False, "Board": self.D}
-        
-        # if not broken yet, finaly return success
-        return {"Pass": True, "Board": self.D}
     
     def get_neighbors(self, X, x, y):
         # update working list queue (self.q) after arc constancy changed
