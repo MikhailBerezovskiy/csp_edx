@@ -8,7 +8,9 @@ import copy
 class sudoku:
     def __init__(self):
         if len(sys.argv) == 2:
-            print (self.solve(sys.argv[1]))
+            output = self.solve(sys.argv[1])
+            f = open('output.txt', 'w')
+            f.write(output)
         else:
             self.testing_sequences = self.load_file()[0]
             self.checking_sequences = self.load_file()[1]
@@ -18,7 +20,7 @@ class sudoku:
                 match = test == check
                 print (test, match)
                 # break
-        
+    
     def load_file(self):
         # load examples from start csv
         li_in = []
