@@ -7,18 +7,17 @@ import copy
 
 class sudoku:
     def __init__(self):
-        self.testing_sequences = self.load_file()[0]
-        self.checking_sequences = self.load_file()[1]
-        for i in range(len(self.testing_sequences)):
-            test = self.solve(self.testing_sequences[i])
-            check = self.checking_sequences[i]
-            # print (test)
-            # print (check)
-            match = test == check
-            print (test, match)
-            # print (self.solve(each))
-            
-            # break
+        if len(sys.argv) == 2:
+            print (self.solve(sys.argv[1]))
+        else:
+            self.testing_sequences = self.load_file()[0]
+            self.checking_sequences = self.load_file()[1]
+            for i in range(len(self.testing_sequences)):
+                test = self.solve(self.testing_sequences[i])
+                check = self.checking_sequences[i]
+                match = test == check
+                print (test, match)
+                # break
         
     def load_file(self):
         # load examples from start csv
@@ -159,27 +158,18 @@ class sudoku:
         return self.rec_bts(D,A,X_mrv)
 
     def rec_bts(self, D, A, X_mrv):
-        print (len(A.keys()))
-        # print (X_mrv)
+        
         if len(A.keys()) == 81:
             return {"Pass": True, "Board": A}
-        # X_mrv = X_mrv.copy()
-        D = copy.deepcopy(D)
-        # A = copy.deepcopy(A)
         
         x = X_mrv[0][1]
-        # print (D)
-        # print ("iter", x, D[x])
-        # print ("A=", A)
-        # print ("D=", D)
         for vx in D[x]:
-            # print ("fc")
-            fc = self.forward_checking(x, vx, D, A)
+            d1 = copy.deepcopy(D)
+            fc = self.forward_checking(x, vx, d1, A)
             if fc != False:
                 A[x] = vx
-                D = fc
-                X_mrv = self.mrv(D,A)
-                result = self.rec_bts(D,A,X_mrv)
+                X_mrv = self.mrv(fc,A)
+                result = self.rec_bts(fc,A,X_mrv)
                 if result != False:
                     return result
                 del A[x]
@@ -189,7 +179,6 @@ class sudoku:
         for xi in A:
             if xi[0] == x[0] or xi[1] == x[1] or xi[2] == x[2]:
                 if vx == A[xi]:
-                    # print ("false")
                     return False
         for xj in D:
             if xj == x:
@@ -197,7 +186,6 @@ class sudoku:
             if xj[0] == x[0] or xj[1] == x[1] or xj[2] == x[2]:
                 if vx in D[xj]:
                     D[xj].remove(vx)
-        # print (D)
         return D
 
     def fisrt_assignment(self, X):
