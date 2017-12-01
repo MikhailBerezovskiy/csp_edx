@@ -2,22 +2,37 @@ import sys
 import csv
 import math
 from collections import deque
+from operator import itemgetter
+import copy
 
 class sudoku:
     def __init__(self):
-        self.testing_sequences = self.load_file()
-        for each in self.testing_sequences:
-            print (self.solve(each))
+        self.testing_sequences = self.load_file()[0]
+        self.checking_sequences = self.load_file()[1]
+        for i in range(len(self.testing_sequences)):
+            test = self.solve(self.testing_sequences[i])
+            check = self.checking_sequences[i]
+            # print (test)
+            # print (check)
+            match = test == check
+            print (test, match)
+            # print (self.solve(each))
+            
             # break
-
+        
     def load_file(self):
         # load examples from start csv
-        li = []
+        li_in = []
+        li_out = []
         with open('sudokus_start.csv', newline='') as input_file:
             file_reader = csv.reader(input_file)
             for row in file_reader:
-                li.append(row[0])
-        return li
+                li_in.append(row[0])
+        with open('sudokus_finish.csv', newline='') as input_file:
+            file_reader = csv.reader(input_file)
+            for row in file_reader:
+                li_out.append(row[0])
+        return (li_in, li_out)
 
 
     def convert_str_to_dict(self, string_board):
@@ -39,7 +54,11 @@ class sudoku:
         for x in D:
             # to avoid wrong sequence of dict keys, parse dict key into list item number
             # x = "121", row#1 col#2 box#1
-            li[9*int(x[0])+int(x[1])] = D[x][0] 
+            if type(D[x]) is list:
+                val = D[x][0]
+            else:
+                val = D[x]
+            li[9*int(x[0])+int(x[1])] = val 
         return "".join(map(str,li))
 
     def print_board(sefl, string_board): # in case to check visualy board, not in use
@@ -56,17 +75,15 @@ class sudoku:
         # Try AC-3 first, if pass return result
         # Else try bts
         # convert str board to dict before solving
-        X = self.convert_str_to_dict(string_board)
-        test_ac3 = self.ac3(X)
-        if test_ac3["Pass"]:
-            return (self.convert_dict_to_str(test_ac3["Board"]), "AC3")
-        else:
-            return (string_board, "Not Pass")
-        # try bts
-        # else:
-        #     test_bts = self.bts(X)
-        #     return (test_bts["board"], "BTS")
+        self.X = self.convert_str_to_dict(string_board)
 
+        test_ac3 = self.ac3(self.X)
+        if test_ac3["Pass"]:
+            return (self.convert_dict_to_str(test_ac3["Board"]) + " AC3")
+        else:
+            test_bts = self.bts(self.X) 
+            return (self.convert_dict_to_str(test_bts["Board"]) + " BTS")
+        
     def ac3(self, X):
         self.D = self.unary_constraints(X) # assign Domain matrix with unary constraints
         q = self.q # assign local queue
@@ -129,12 +146,74 @@ class sudoku:
         for xi in X:
             for xj in X:
                 if xi == x and xj == y:
-                    next
+                    continue
                 if xi[0] == xj[0] or xi[1] == xj[1] or xi[2] == xj[2]:
                     if xi != xj and len(self.D[xj]) == 1:
                         Nli.append([xi, xj])    
         return Nli
 
+    def bts(self, X):
+        D = self.unary_constraints(X)
+        A = self.fisrt_assignment(X)
+        X_mrv = self.mrv(D,A)
+        return self.rec_bts(D,A,X_mrv)
+
+    def rec_bts(self, D, A, X_mrv):
+        print (len(A.keys()))
+        # print (X_mrv)
+        if len(A.keys()) == 81:
+            return {"Pass": True, "Board": A}
+        # X_mrv = X_mrv.copy()
+        D = copy.deepcopy(D)
+        # A = copy.deepcopy(A)
+        
+        x = X_mrv[0][1]
+        # print (D)
+        # print ("iter", x, D[x])
+        # print ("A=", A)
+        # print ("D=", D)
+        for vx in D[x]:
+            # print ("fc")
+            fc = self.forward_checking(x, vx, D, A)
+            if fc != False:
+                A[x] = vx
+                D = fc
+                X_mrv = self.mrv(D,A)
+                result = self.rec_bts(D,A,X_mrv)
+                if result != False:
+                    return result
+                del A[x]
+        return False
+
+    def forward_checking(self, x, vx, D, A):
+        for xi in A:
+            if xi[0] == x[0] or xi[1] == x[1] or xi[2] == x[2]:
+                if vx == A[xi]:
+                    # print ("false")
+                    return False
+        for xj in D:
+            if xj == x:
+                continue
+            if xj[0] == x[0] or xj[1] == x[1] or xj[2] == x[2]:
+                if vx in D[xj]:
+                    D[xj].remove(vx)
+        # print (D)
+        return D
+
+    def fisrt_assignment(self, X):
+        di = {}
+        for x in X:
+            if X[x] != 0:
+                di[x] = X[x]
+        return di
+    
+    def mrv(self, D, A):
+        li = []
+        for x in D:
+            if x not in A:
+                li.append([len(D[x]), x])
+        li.sort()
+        return li
 
 sudoku()
 
